@@ -23,7 +23,9 @@ def _value(value: object) -> str:
 class KeyValueFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         fields: dict[str, object] = {
-            "ts": datetime.fromtimestamp(record.created, UTC).isoformat(timespec="milliseconds"),
+            "ts": datetime.fromtimestamp(record.created, UTC).isoformat(
+                timespec="milliseconds"
+            ),
             "level": record.levelname,
             "logger": record.name,
         }
@@ -31,7 +33,9 @@ class KeyValueFormatter(logging.Formatter):
         line += f" msg={json.dumps(record.getMessage(), ensure_ascii=False)}"
         context = {k: v for k, v in vars(record).items() if k not in _STANDARD_ATTRS}
         if context:
-            line += " " + " ".join(f"{key}={_value(value)}" for key, value in context.items())
+            line += " " + " ".join(
+                f"{key}={_value(value)}" for key, value in context.items()
+            )
         if record.exc_info:
             line += f" exc={_value(self.formatException(record.exc_info))}"
         return line

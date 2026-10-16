@@ -21,7 +21,9 @@ from outbox_payments.entrypoints.api.schemas import (
 )
 
 router = APIRouter(
-    prefix="/api/v1/payments", tags=["payments"], dependencies=[Depends(require_api_key)]
+    prefix="/api/v1/payments",
+    tags=["payments"],
+    dependencies=[Depends(require_api_key)],
 )
 
 

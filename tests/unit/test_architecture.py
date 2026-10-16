@@ -47,7 +47,9 @@ def test_dependencies_point_inward(case: LayerRuleCase) -> None:
 
 def test_checker_detects_a_violation(tmp_path: Path) -> None:
     offending = tmp_path / "bad.py"
-    offending.write_text("from outbox_payments.adapters.db import models\nimport sqlalchemy\n")
+    offending.write_text(
+        "from outbox_payments.adapters.db import models\nimport sqlalchemy\n"
+    )
 
     modules = list(imported_modules(offending))
 

@@ -22,5 +22,7 @@ def request_fingerprint(
         "metadata": metadata,
         "webhook_url": webhook_url,
     }
-    encoded = json.dumps(canonical, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    encoded = json.dumps(
+        canonical, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+    )
     return hashlib.sha256(encoded.encode()).hexdigest()

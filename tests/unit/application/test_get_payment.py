@@ -29,13 +29,17 @@ async def test_returns_a_stored_payment() -> None:
         clock=FrozenClock(),
     ).execute(CreatePaymentCommand(**BASE_REQUEST))
 
-    found = await GetPayment(payments=InMemoryPaymentRepository(store.begin())).execute(created.id)
+    found = await GetPayment(payments=InMemoryPaymentRepository(store.begin())).execute(
+        created.id
+    )
 
     assert found == created
 
 
 async def test_unknown_payment_is_reported() -> None:
-    get_payment = GetPayment(payments=InMemoryPaymentRepository(InMemoryStore().begin()))
+    get_payment = GetPayment(
+        payments=InMemoryPaymentRepository(InMemoryStore().begin())
+    )
 
     with pytest.raises(PaymentNotFoundError):
         await get_payment.execute(uuid7())

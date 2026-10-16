@@ -52,7 +52,9 @@ class MemoryBackend:
     async def session(self) -> AsyncGenerator[UnitOfWork]:
         tx = self.store.begin()
         try:
-            yield UnitOfWork(InMemoryPaymentRepository(tx), InMemoryOutboxRepository(tx), tx)
+            yield UnitOfWork(
+                InMemoryPaymentRepository(tx), InMemoryOutboxRepository(tx), tx
+            )
         finally:
             await tx.rollback()
 
@@ -64,7 +66,9 @@ class SqlBackend:
     @asynccontextmanager
     async def session(self) -> AsyncGenerator[UnitOfWork]:
         async with self._sessions() as session:
-            yield UnitOfWork(SqlPaymentRepository(session), SqlOutboxRepository(session), session)
+            yield UnitOfWork(
+                SqlPaymentRepository(session), SqlOutboxRepository(session), session
+            )
 
 
 @pytest.fixture(scope="session")
@@ -78,7 +82,9 @@ async def database_url() -> str:
         pytest.param("sql", marks=pytest.mark.integration),
     ]
 )
-async def backend(request: pytest.FixtureRequest, database_url: str) -> AsyncIterator[Backend]:
+async def backend(
+    request: pytest.FixtureRequest, database_url: str
+) -> AsyncIterator[Backend]:
     if request.param == "memory":
         yield MemoryBackend()
         return

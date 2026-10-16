@@ -37,9 +37,12 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id", name="pk_payments"),
         sa.UniqueConstraint("idempotency_key", name="uq_payments_idempotency_key"),
         sa.CheckConstraint("amount > 0", name="ck_payments_amount_positive"),
-        sa.CheckConstraint("currency IN ('RUB', 'USD', 'EUR')", name="ck_payments_currency_known"),
         sa.CheckConstraint(
-            "status IN ('pending', 'succeeded', 'failed')", name="ck_payments_status_known"
+            "currency IN ('RUB', 'USD', 'EUR')", name="ck_payments_currency_known"
+        ),
+        sa.CheckConstraint(
+            "status IN ('pending', 'succeeded', 'failed')",
+            name="ck_payments_status_known",
         ),
     )
     op.create_table(
@@ -50,7 +53,9 @@ def upgrade() -> None:
         sa.Column("payload", postgresql.JSONB(), nullable=False),
         sa.Column("created_at", TIMESTAMPTZ, nullable=False),
         sa.Column("published_at", TIMESTAMPTZ, nullable=True),
-        sa.Column("attempts", sa.Integer(), server_default=sa.text("0"), nullable=False),
+        sa.Column(
+            "attempts", sa.Integer(), server_default=sa.text("0"), nullable=False
+        ),
         sa.Column("last_error", sa.Text(), nullable=True),
         sa.PrimaryKeyConstraint("id", name="pk_outbox"),
     )

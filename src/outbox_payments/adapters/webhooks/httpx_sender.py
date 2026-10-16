@@ -41,7 +41,9 @@ class HttpxWebhookSender:
                 follow_redirects=False,
             )
         except httpx.TransportError as exc:  # timeouts, refused, reset, DNS
-            raise WebhookTemporarilyUnavailableError(f"{type(exc).__name__}: {exc}") from exc
+            raise WebhookTemporarilyUnavailableError(
+                f"{type(exc).__name__}: {exc}"
+            ) from exc
 
         match classify_webhook_status(response.status_code):
             case WebhookVerdict.DELIVERED:

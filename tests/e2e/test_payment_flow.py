@@ -21,7 +21,9 @@ def new_key() -> str:
 
 async def create(api: AsyncClient, key: str, **overrides: object) -> dict[str, Any]:
     response = await api.post(
-        "/api/v1/payments", json={**VALID_BODY, **overrides}, headers={"Idempotency-Key": key}
+        "/api/v1/payments",
+        json={**VALID_BODY, **overrides},
+        headers={"Idempotency-Key": key},
     )
     assert response.status_code == 202, response.text
     return response.json()
@@ -96,7 +98,9 @@ async def test_failing_receiver_is_retried_three_times_then_dead_lettered(
     assert len(received) == 4  # first delivery + 3 retries
     assert len({r["webhook_id"] for r in received}) == 1  # same X-Webhook-Id every time
     payment = (await api.get(f"/api/v1/payments/{payment_id}")).json()
-    assert payment["status"] in FINAL  # the charge itself was committed before the webhook
+    assert (
+        payment["status"] in FINAL
+    )  # the charge itself was committed before the webhook
 
 
 def compose(*args: str) -> None:

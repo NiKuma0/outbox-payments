@@ -11,7 +11,9 @@ from outbox_payments.adapters.db.models import Base
 from outbox_payments.config import get_settings
 
 config = context.config
-if config.config_file_name is not None and config.attributes.get("configure_logger", True):
+if config.config_file_name is not None and config.attributes.get(
+    "configure_logger", True
+):
     fileConfig(config.config_file_name)
 
 target_metadata = Base.metadata
@@ -24,7 +26,9 @@ def database_url() -> str:
 
 
 def run_migrations_offline() -> None:
-    context.configure(url=database_url(), target_metadata=target_metadata, literal_binds=True)
+    context.configure(
+        url=database_url(), target_metadata=target_metadata, literal_binds=True
+    )
     with context.begin_transaction():
         context.run_migrations()
 

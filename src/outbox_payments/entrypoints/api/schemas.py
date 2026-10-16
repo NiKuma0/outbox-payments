@@ -27,7 +27,9 @@ WebhookUrl = Annotated[HttpUrl, UrlConstraints(max_length=2048)]
 class CreatePaymentRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    amount: Annotated[Decimal, Field(gt=0, max_digits=18, decimal_places=2, examples=["100.00"])]
+    amount: Annotated[
+        Decimal, Field(gt=0, max_digits=18, decimal_places=2, examples=["100.00"])
+    ]
     currency: Currency
     description: Annotated[str, Field(min_length=1, max_length=MAX_DESCRIPTION_LENGTH)]
     metadata: dict[str, JsonValue] = Field(default_factory=dict[str, JsonValue])
@@ -38,7 +40,9 @@ class CreatePaymentRequest(BaseModel):
     def _limit_metadata_size(cls, value: dict[str, JsonValue]) -> dict[str, JsonValue]:
         size = len(json.dumps(value, separators=(",", ":")).encode())
         if size > MAX_METADATA_BYTES:
-            raise ValueError(f"metadata must not exceed {MAX_METADATA_BYTES} bytes as JSON")
+            raise ValueError(
+                f"metadata must not exceed {MAX_METADATA_BYTES} bytes as JSON"
+            )
         return value
 
 
@@ -49,7 +53,9 @@ class PaymentAcceptedResponse(BaseModel):
 
     @classmethod
     def of(cls, payment: Payment) -> PaymentAcceptedResponse:
-        return cls(payment_id=payment.id, status=payment.status, created_at=payment.created_at)
+        return cls(
+            payment_id=payment.id, status=payment.status, created_at=payment.created_at
+        )
 
 
 class PaymentResponse(BaseModel):

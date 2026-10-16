@@ -92,7 +92,10 @@ class SqlPaymentRepository:
     async def complete_if_pending(self, payment: Payment) -> bool:
         updated = await self._session.scalar(
             update(PaymentRow)
-            .where(PaymentRow.id == payment.id, PaymentRow.status == PaymentStatus.PENDING.value)
+            .where(
+                PaymentRow.id == payment.id,
+                PaymentRow.status == PaymentStatus.PENDING.value,
+            )
             .values(status=payment.status.value, processed_at=payment.processed_at)
             .returning(PaymentRow.id)
             .execution_options(synchronize_session=False)
@@ -102,7 +105,9 @@ class SqlPaymentRepository:
     async def mark_webhook_delivered(self, payment: Payment) -> None:
         await self._session.execute(
             update(PaymentRow)
-            .where(PaymentRow.id == payment.id, PaymentRow.webhook_delivered_at.is_(None))
+            .where(
+                PaymentRow.id == payment.id, PaymentRow.webhook_delivered_at.is_(None)
+            )
             .values(webhook_delivered_at=payment.webhook_delivered_at)
             .execution_options(synchronize_session=False)
         )
@@ -136,7 +141,9 @@ class SqlOutboxRepository:
         )
         return [_to_message(row) for row in rows]
 
-    async def mark_published(self, message_ids: Sequence[UUID], *, at: datetime) -> None:
+    async def mark_published(
+        self, message_ids: Sequence[UUID], *, at: datetime
+    ) -> None:
         await self._session.execute(
             update(OutboxRow)
             .where(OutboxRow.id.in_(message_ids))

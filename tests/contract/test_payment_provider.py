@@ -32,7 +32,9 @@ def provider(request: pytest.FixtureRequest) -> PaymentProvider:
     return EmulatedPaymentProvider(sleep=no_sleep)
 
 
-async def test_same_key_always_yields_the_same_outcome(provider: PaymentProvider) -> None:
+async def test_same_key_always_yields_the_same_outcome(
+    provider: PaymentProvider,
+) -> None:
     payment_id = uuid7()
 
     outcomes = {await provider.charge(payment_id, MONEY) for _ in range(20)}
@@ -41,7 +43,9 @@ async def test_same_key_always_yields_the_same_outcome(provider: PaymentProvider
     assert outcomes <= set(ChargeOutcome)
 
 
-async def test_different_keys_are_independent_charges(provider: PaymentProvider) -> None:
+async def test_different_keys_are_independent_charges(
+    provider: PaymentProvider,
+) -> None:
     outcomes = [await provider.charge(uuid7(), MONEY) for _ in range(5)]
 
     assert all(isinstance(outcome, ChargeOutcome) for outcome in outcomes)

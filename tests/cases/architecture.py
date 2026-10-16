@@ -14,7 +14,15 @@ class LayerRuleCase(TypedDict):
     forbidden_external: list[str]
 
 
-FRAMEWORKS = ["fastapi", "starlette", "sqlalchemy", "asyncpg", "faststream", "aio_pika", "httpx"]
+FRAMEWORKS = [
+    "fastapi",
+    "starlette",
+    "sqlalchemy",
+    "asyncpg",
+    "faststream",
+    "aio_pika",
+    "httpx",
+]
 
 LAYER_RULE_CASES: list[LayerRuleCase] = [
     {

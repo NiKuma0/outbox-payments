@@ -8,7 +8,9 @@ from tests.cases.entrypoints.logs import LOG_LINE_CASES, LogLineCase
 
 
 def render(message: str, extra: dict[str, object]) -> str:
-    record = logging.LogRecord("payments", logging.INFO, __file__, 1, message, None, None)
+    record = logging.LogRecord(
+        "payments", logging.INFO, __file__, 1, message, None, None
+    )
     for key, value in extra.items():
         setattr(record, key, value)
     return KeyValueFormatter().format(record)

@@ -59,7 +59,9 @@ def problem_response(
         body["detail"] = detail
     if errors is not None:
         body["errors"] = list(errors)
-    return JSONResponse(body, status_code=status, media_type=PROBLEM_JSON, headers=headers)
+    return JSONResponse(
+        body, status_code=status, media_type=PROBLEM_JSON, headers=headers
+    )
 
 
 def _field_name(location: Sequence[int | str]) -> str:
@@ -83,7 +85,8 @@ async def _on_problem(request: Request, exc: Exception) -> JSONResponse:
 async def _on_validation_error(request: Request, exc: Exception) -> JSONResponse:
     assert isinstance(exc, RequestValidationError)
     errors = [
-        {"field": _field_name(error["loc"]), "message": str(error["msg"])} for error in exc.errors()
+        {"field": _field_name(error["loc"]), "message": str(error["msg"])}
+        for error in exc.errors()
     ]
     return problem_response(
         request,

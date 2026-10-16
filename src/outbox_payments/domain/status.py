@@ -36,4 +36,8 @@ class ChargeOutcome(StrEnum):
 
     @property
     def final_status(self) -> PaymentStatus:
-        return PaymentStatus.SUCCEEDED if self is ChargeOutcome.APPROVED else PaymentStatus.FAILED
+        return (
+            PaymentStatus.SUCCEEDED
+            if self is ChargeOutcome.APPROVED
+            else PaymentStatus.FAILED
+        )

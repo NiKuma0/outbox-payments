@@ -23,7 +23,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncGenerator[None]:
-        engine = create_engine(settings.database_url, pool_size=settings.database_pool_size)
+        engine = create_engine(
+            settings.database_url, pool_size=settings.database_pool_size
+        )
         state.session_factory = create_session_factory(engine)
         state.readiness_probes = {
             "database": partial(database_is_reachable, engine),

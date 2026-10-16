@@ -38,7 +38,9 @@ async def accept(sessions: async_sessionmaker[AsyncSession], count: int) -> None
                 outbox=SqlOutboxRepository(session),
                 transaction=session,
                 clock=SystemClock(),
-            ).execute(replace(CreatePaymentCommand(**BASE_REQUEST), idempotency_key=f"k-{n}"))
+            ).execute(
+                replace(CreatePaymentCommand(**BASE_REQUEST), idempotency_key=f"k-{n}")
+            )
 
 
 async def drain_outbox(
@@ -62,12 +64,16 @@ async def test_two_concurrent_relays_publish_every_event_exactly_once(
 ) -> None:
     await accept(sessions, 30)
 
-    await asyncio.gather(drain_outbox(sessions, broker, 4), drain_outbox(sessions, broker, 4))
+    await asyncio.gather(
+        drain_outbox(sessions, broker, 4), drain_outbox(sessions, broker, 4)
+    )
 
     messages = await drain(broker, "payments.new")
     async with sessions() as session:
         rows = (await session.scalars(select(OutboxRow))).all()
-    assert sorted(m.message_id or "" for m in messages) == sorted(str(r.id) for r in rows)
+    assert sorted(m.message_id or "" for m in messages) == sorted(
+        str(r.id) for r in rows
+    )
     assert all(r.published_at is not None for r in rows)
     assert {m.delivery_mode for m in messages} == {2}  # persistent
     body = json.loads(messages[0].body)

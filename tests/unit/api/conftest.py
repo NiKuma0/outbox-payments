@@ -43,7 +43,9 @@ def probes() -> ProbeSwitch:
 
 
 @pytest.fixture
-async def client(store: InMemoryStore, probes: ProbeSwitch) -> AsyncIterator[AsyncClient]:
+async def client(
+    store: InMemoryStore, probes: ProbeSwitch
+) -> AsyncIterator[AsyncClient]:
     app = create_app(Settings(api_key=SecretStr(API_KEY)))
     clock = FrozenClock()
 

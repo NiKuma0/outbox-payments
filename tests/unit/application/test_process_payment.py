@@ -74,7 +74,9 @@ class World:
 
 
 @pytest.mark.parametrize("case", as_params(GATEWAY_OUTCOME_CASES))
-async def test_gateway_outcome_sets_final_status_and_webhook(case: GatewayOutcomeCase) -> None:
+async def test_gateway_outcome_sets_final_status_and_webhook(
+    case: GatewayOutcomeCase,
+) -> None:
     world = World(provider=FakePaymentProvider(case["outcome"]))
     payment, event_id = await world.create_payment()
 
@@ -105,7 +107,9 @@ async def test_duplicate_event_charges_once_and_notifies_once() -> None:
     assert len(world.webhooks.delivered) == 1
 
 
-async def test_crash_after_charge_before_commit_replays_the_gateway_idempotently() -> None:
+async def test_crash_after_charge_before_commit_replays_the_gateway_idempotently() -> (
+    None
+):
     world = World(provider=FakePaymentProvider(ChargeOutcome.DECLINED))
     payment, event_id = await world.create_payment()
     crashing = world.store.begin()
@@ -124,7 +128,9 @@ async def test_crash_after_charge_before_commit_replays_the_gateway_idempotently
 
 
 async def test_crash_after_commit_before_webhook_resumes_at_the_webhook() -> None:
-    world = World(webhooks=RecordingWebhookSender([WebhookTemporarilyUnavailableError("503")]))
+    world = World(
+        webhooks=RecordingWebhookSender([WebhookTemporarilyUnavailableError("503")])
+    )
     payment, event_id = await world.create_payment()
 
     with pytest.raises(WebhookTemporarilyUnavailableError):

@@ -7,7 +7,12 @@ plus three retries (1 s, 4 s, 16 s). The failure after the third retry dead-lett
 from typing import Literal, NotRequired, TypedDict
 
 type Failure = Literal[
-    "none", "webhook-5xx", "webhook-4xx", "database-down", "malformed-body", "unknown-payment"
+    "none",
+    "webhook-5xx",
+    "webhook-4xx",
+    "database-down",
+    "malformed-body",
+    "unknown-payment",
 ]
 
 

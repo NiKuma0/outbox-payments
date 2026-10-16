@@ -83,7 +83,9 @@ class RelayWorker:
             logger.exception("outbox purge failed")
 
 
-async def connect_until_ready(broker: RabbitBroker, stop: asyncio.Event, interval: float) -> bool:
+async def connect_until_ready(
+    broker: RabbitBroker, stop: asyncio.Event, interval: float
+) -> bool:
     """Keep trying to connect. Payments keep accumulating in the outbox meanwhile."""
     while not stop.is_set():
         try:
@@ -129,14 +131,18 @@ async def serve(settings: Settings) -> None:
             ).purge(retention=timedelta(days=settings.outbox_retention_days))
 
     try:
-        if await connect_until_ready(broker, stop, settings.relay_poll_interval_seconds * 4):
+        if await connect_until_ready(
+            broker, stop, settings.relay_poll_interval_seconds * 4
+        ):
             policy = RetryPolicy(
                 max_retries=settings.max_retries,
                 base_delay_seconds=settings.retry_base_delay_seconds,
                 backoff_factor=settings.retry_backoff_factor,
             )
             await declare_topology(broker, policy)
-            logger.info("relay started", extra={"batch_size": settings.relay_batch_size})
+            logger.info(
+                "relay started", extra={"batch_size": settings.relay_batch_size}
+            )
             heartbeat = asyncio.create_task(
                 beat_forever(DEFAULT_PATH, partial(broker.ping, timeout=2.0))
             )

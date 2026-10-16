@@ -27,7 +27,9 @@ from outbox_payments.adapters.messaging.retry import (
 EXCHANGE_NAME = "payments"
 ROUTING_KEY = PAYMENTS_QUEUE
 
-PAYMENTS_EXCHANGE = RabbitExchange(EXCHANGE_NAME, type=ExchangeType.DIRECT, durable=True)
+PAYMENTS_EXCHANGE = RabbitExchange(
+    EXCHANGE_NAME, type=ExchangeType.DIRECT, durable=True
+)
 
 
 def payments_queue() -> RabbitQueue:

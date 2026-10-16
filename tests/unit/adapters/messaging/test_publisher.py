@@ -12,7 +12,9 @@ from tests.support.builders import make_payment
 pytestmark = pytest.mark.anyio
 
 
-async def test_publishes_payload_to_the_payments_queue_with_event_id_as_message_id() -> None:
+async def test_publishes_payload_to_the_payments_queue_with_event_id_as_message_id() -> (
+    None
+):
     broker = RabbitBroker()
     # TestRabbitBroker does not carry delivery_mode through; persistence is asserted
     # against a real broker in tests/integration/test_relay.py.
@@ -26,7 +28,9 @@ async def test_publishes_payload_to_the_payments_queue_with_event_id_as_message_
     async with TestRabbitBroker(broker) as test_broker:
         await RabbitEventPublisher(test_broker).publish(outbox_message)
 
-    assert received == [(outbox_message.payload, str(outbox_message.id), "payment.created")]
+    assert received == [
+        (outbox_message.payload, str(outbox_message.id), "payment.created")
+    ]
 
 
 async def test_unconfirmed_publish_is_reported_as_publish_error() -> None:

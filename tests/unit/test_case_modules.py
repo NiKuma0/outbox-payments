@@ -59,15 +59,21 @@ def purity_violations(source: str) -> list[str]:
             case ast.ImportFrom(module=module) if not (module or "").startswith(
                 ALLOWED_IMPORT_PREFIXES
             ):
-                violations.append(f"line {node.lineno}: import from {module!r} is not allowed")
+                violations.append(
+                    f"line {node.lineno}: import from {module!r} is not allowed"
+                )
             case ast.Call(func=ast.Name(id=name)) if name in ALLOWED_CALLS:
                 pass
             case ast.Call():
-                violations.append(f"line {node.lineno}: calls other than Decimal() are not allowed")
+                violations.append(
+                    f"line {node.lineno}: calls other than Decimal() are not allowed"
+                )
             case ast.ClassDef(body=body) if not all(
                 isinstance(stmt, ast.AnnAssign | ast.Expr | ast.Pass) for stmt in body
             ):
-                violations.append(f"line {node.lineno}: classes may only declare TypedDict fields")
+                violations.append(
+                    f"line {node.lineno}: classes may only declare TypedDict fields"
+                )
             case _:
                 pass
     return violations
@@ -77,11 +83,15 @@ def purity_violations(source: str) -> list[str]:
     ("source", "expected_violations"),
     [
         pytest.param("X: list[int] = [1, 2]", 0, id="plain-literals-are-pure"),
-        pytest.param("from decimal import Decimal\nX = Decimal('1')", 0, id="decimal-is-pure"),
+        pytest.param(
+            "from decimal import Decimal\nX = Decimal('1')", 0, id="decimal-is-pure"
+        ),
         pytest.param("def f() -> None: ...", 1, id="function-is-impure"),
         pytest.param("import os", 1, id="stdlib-io-import-is-impure"),
         pytest.param("X = open('f')", 1, id="arbitrary-call-is-impure"),
-        pytest.param("class C:\n    def m(self): ...", 2, id="class-with-method-is-impure"),
+        pytest.param(
+            "class C:\n    def m(self): ...", 2, id="class-with-method-is-impure"
+        ),
     ],
 )
 def test_purity_checker(source: str, expected_violations: int) -> None:

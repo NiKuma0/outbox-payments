@@ -52,7 +52,9 @@ async def test_outcome_follows_the_success_rate(case: GatewayDrawCase) -> None:
     outcome = await provider([0.5, case["draw"]], sleep).charge(uuid7(), MONEY)
 
     assert outcome is case["expected"]
-    assert sleep.calls == [3.5]  # uniform(2, 5) at 0.5, slept through the injected sleep
+    assert sleep.calls == [
+        3.5
+    ]  # uniform(2, 5) at 0.5, slept through the injected sleep
 
 
 async def test_repeated_charge_with_same_key_replays_the_outcome_without_work() -> None:

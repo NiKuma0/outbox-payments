@@ -44,6 +44,8 @@ def notification_for(payment: Payment, *, webhook_id: UUID) -> WebhookNotificati
             "amount": str(payment.money.amount),
             "currency": payment.money.currency.value,
             "metadata": payment.metadata,
-            "processed_at": payment.processed_at.isoformat() if payment.processed_at else None,
+            "processed_at": payment.processed_at.isoformat()
+            if payment.processed_at
+            else None,
         },
     )

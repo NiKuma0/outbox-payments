@@ -20,7 +20,9 @@ async def test_liveness_does_not_touch_dependencies(
 
 
 @pytest.mark.parametrize("case", as_params(READINESS_CASES))
-async def test_readiness(case: ReadinessCase, client: AsyncClient, probes: ProbeSwitch) -> None:
+async def test_readiness(
+    case: ReadinessCase, client: AsyncClient, probes: ProbeSwitch
+) -> None:
     probes.database_up, probes.broker_up = case["database_up"], case["broker_up"]
 
     response = await client.get("/ready")

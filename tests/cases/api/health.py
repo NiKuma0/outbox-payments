@@ -15,7 +15,10 @@ READINESS_CASES: list[ReadinessCase] = [
         "database_up": True,
         "broker_up": True,
         "expected_status": 200,
-        "expected_body": {"status": "ready", "checks": {"database": "ok", "broker": "ok"}},
+        "expected_body": {
+            "status": "ready",
+            "checks": {"database": "ok", "broker": "ok"},
+        },
     },
     {
         "id": "database-down-means-not-ready",

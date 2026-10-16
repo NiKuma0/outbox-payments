@@ -46,13 +46,17 @@ class RelayOutbox:
                 # through the batch, keep the error for operators, retry next round.
                 await self._outbox.record_failure(message.id, str(exc))
                 logger.warning(
-                    "publish failed", extra={"event_id": str(message.id), "error": str(exc)}
+                    "publish failed",
+                    extra={"event_id": str(message.id), "error": str(exc)},
                 )
                 break
             published.append(message.id)
             logger.info(
                 "event published",
-                extra={"event_id": str(message.id), "payment_id": str(message.aggregate_id)},
+                extra={
+                    "event_id": str(message.id),
+                    "payment_id": str(message.aggregate_id),
+                },
             )
 
         if published:
@@ -62,7 +66,9 @@ class RelayOutbox:
 
     async def purge(self, *, retention: timedelta) -> int:
         """Delete records published more than ``retention`` ago."""
-        deleted = await self._outbox.delete_published_before(self._clock.now() - retention)
+        deleted = await self._outbox.delete_published_before(
+            self._clock.now() - retention
+        )
         await self._transaction.commit()
         if deleted:
             logger.info("outbox purged", extra={"deleted": deleted})

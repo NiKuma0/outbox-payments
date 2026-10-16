@@ -15,7 +15,9 @@ from outbox_payments.application.outbox import OutboxMessage
 
 
 class RabbitEventPublisher:
-    def __init__(self, broker: RabbitBroker, *, confirm_timeout_seconds: float = 5.0) -> None:
+    def __init__(
+        self, broker: RabbitBroker, *, confirm_timeout_seconds: float = 5.0
+    ) -> None:
         self._broker = broker
         self._timeout = confirm_timeout_seconds
 

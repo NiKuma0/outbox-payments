@@ -26,7 +26,9 @@ def _require_stack() -> None:  # pyright: ignore[reportUnusedFunction]
 
 @pytest.fixture
 async def api() -> AsyncIterator[AsyncClient]:
-    async with AsyncClient(base_url=API_URL, headers={"X-API-Key": API_KEY}, timeout=10) as c:
+    async with AsyncClient(
+        base_url=API_URL, headers={"X-API-Key": API_KEY}, timeout=10
+    ) as c:
         yield c
 
 
@@ -38,7 +40,9 @@ async def sink() -> AsyncIterator[AsyncClient]:
 
 @pytest.fixture
 async def rabbitmq() -> AsyncIterator[AsyncClient]:
-    async with AsyncClient(base_url=RABBITMQ_API_URL, auth=("guest", "guest"), timeout=10) as c:
+    async with AsyncClient(
+        base_url=RABBITMQ_API_URL, auth=("guest", "guest"), timeout=10
+    ) as c:
         yield c
 
 

@@ -30,14 +30,23 @@ async def accept_payments(
             outbox=InMemoryOutboxRepository(tx),
             transaction=tx,
             clock=clock,
-        ).execute(replace(CreatePaymentCommand(**BASE_REQUEST), idempotency_key=f"key-{batch}-{n}"))
+        ).execute(
+            replace(
+                CreatePaymentCommand(**BASE_REQUEST), idempotency_key=f"key-{batch}-{n}"
+            )
+        )
         clock.advance(timedelta(milliseconds=1))
 
 
-def relay(store: InMemoryStore, publisher: FakeEventPublisher, clock: FrozenClock) -> RelayOutbox:
+def relay(
+    store: InMemoryStore, publisher: FakeEventPublisher, clock: FrozenClock
+) -> RelayOutbox:
     tx = store.begin()
     return RelayOutbox(
-        outbox=InMemoryOutboxRepository(tx), publisher=publisher, transaction=tx, clock=clock
+        outbox=InMemoryOutboxRepository(tx),
+        publisher=publisher,
+        transaction=tx,
+        clock=clock,
     )
 
 

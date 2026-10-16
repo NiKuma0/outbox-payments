@@ -29,7 +29,9 @@ async def test_uncommitted_payment_is_rolled_back(backend: Backend) -> None:
         assert await uow.payments.get(payment.id) is None
 
 
-async def test_uncommitted_payment_is_invisible_to_other_transactions(backend: Backend) -> None:
+async def test_uncommitted_payment_is_invisible_to_other_transactions(
+    backend: Backend,
+) -> None:
     payment, _ = make_payment()
     async with backend.session() as writer, backend.session() as reader:
         await writer.payments.add_if_absent(payment)

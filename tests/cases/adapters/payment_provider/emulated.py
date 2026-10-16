@@ -20,6 +20,14 @@ GATEWAY_DRAW_CASES: list[GatewayDrawCase] = [
         "draw": 0.8999,
         "expected": ChargeOutcome.APPROVED,
     },
-    {"id": "draw-at-success-rate-is-declined", "draw": 0.9, "expected": ChargeOutcome.DECLINED},
-    {"id": "highest-draw-is-declined", "draw": 0.9999, "expected": ChargeOutcome.DECLINED},
+    {
+        "id": "draw-at-success-rate-is-declined",
+        "draw": 0.9,
+        "expected": ChargeOutcome.DECLINED,
+    },
+    {
+        "id": "highest-draw-is-declined",
+        "draw": 0.9999,
+        "expected": ChargeOutcome.DECLINED,
+    },
 ]

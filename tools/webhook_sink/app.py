@@ -67,7 +67,9 @@ def create_app() -> FastAPI:
     async def list_received(  # pyright: ignore[reportUnusedFunction]
         payment_id: str | None = None,
     ) -> list[dict[str, Any]]:
-        return [r for r in received if payment_id in (None, r["payload"].get("payment_id"))]
+        return [
+            r for r in received if payment_id in (None, r["payload"].get("payment_id"))
+        ]
 
     @app.delete("/received", status_code=204)
     async def clear() -> None:  # pyright: ignore[reportUnusedFunction]

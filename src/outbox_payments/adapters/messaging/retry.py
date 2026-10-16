@@ -37,13 +37,19 @@ class RetryPolicy:
     backoff_factor: float = 4.0
 
     def delay_for(self, retry_number: int) -> float:
-        return float(self.base_delay_seconds * self.backoff_factor ** (retry_number - 1))
+        return float(
+            self.base_delay_seconds * self.backoff_factor ** (retry_number - 1)
+        )
 
     @property
     def levels(self) -> list[Retry]:
         """One TTL queue per delay level, declared up front."""
         return [
-            Retry(queue=retry_queue_name(n), retry_number=n, delay_seconds=self.delay_for(n))
+            Retry(
+                queue=retry_queue_name(n),
+                retry_number=n,
+                delay_seconds=self.delay_for(n),
+            )
             for n in range(1, self.max_retries + 1)
         ]
 

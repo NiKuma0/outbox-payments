@@ -23,7 +23,9 @@ TEST_DATABASE_URL = os.environ.get(
 
 async def _create_database_if_missing(url: str) -> None:
     target = make_url(url)
-    admin = create_async_engine(target.set(database="postgres"), isolation_level="AUTOCOMMIT")
+    admin = create_async_engine(
+        target.set(database="postgres"), isolation_level="AUTOCOMMIT"
+    )
     try:
         async with admin.connect() as connection:
             exists = await connection.scalar(

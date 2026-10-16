@@ -22,7 +22,9 @@ class IdempotencyKeyConflictError(ApplicationError):
     """The key was already used for a request with a different body."""
 
     def __init__(self, idempotency_key: str) -> None:
-        super().__init__(f"idempotency key {idempotency_key!r} was used with a different request")
+        super().__init__(
+            f"idempotency key {idempotency_key!r} was used with a different request"
+        )
         self.idempotency_key = idempotency_key
 
 

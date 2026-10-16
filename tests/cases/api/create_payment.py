@@ -144,7 +144,11 @@ CREATE_PAYMENT_VALIDATION_CASES: list[CreatePaymentValidationCase] = [
 ]
 
 IDEMPOTENCY_KEY_HEADER_CASES: list[IdempotencyKeyHeaderCase] = [
-    {"id": "missing-idempotency-key-is-a-bad-request", "headers": {}, "expected_status": 400},
+    {
+        "id": "missing-idempotency-key-is-a-bad-request",
+        "headers": {},
+        "expected_status": 400,
+    },
     {
         "id": "empty-idempotency-key-is-a-bad-request",
         "headers": {"Idempotency-Key": ""},

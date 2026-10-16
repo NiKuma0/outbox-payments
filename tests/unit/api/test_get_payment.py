@@ -37,7 +37,9 @@ async def test_unknown_payment_is_a_problem_404(client: AsyncClient) -> None:
     assert response.json()["title"] == "Payment not found"
 
 
-async def test_malformed_payment_id_is_a_validation_problem(client: AsyncClient) -> None:
+async def test_malformed_payment_id_is_a_validation_problem(
+    client: AsyncClient,
+) -> None:
     response = await client.get("/api/v1/payments/not-a-uuid")
 
     assert response.status_code == 422

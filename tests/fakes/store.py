@@ -131,7 +131,9 @@ class InMemoryOutboxRepository:
             locks[message.id] = self._tx
         return claimable
 
-    async def mark_published(self, message_ids: Sequence[UUID], *, at: datetime) -> None:
+    async def mark_published(
+        self, message_ids: Sequence[UUID], *, at: datetime
+    ) -> None:
         for message_id in message_ids:
             self._put(replace(self._tx.outbox[message_id], published_at=at))
 

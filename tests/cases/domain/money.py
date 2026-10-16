@@ -53,7 +53,10 @@ INVALID_MONEY_CASES: list[InvalidMoneyCase] = [
     {"id": "zero-amount-is-not-money", "amount": Decimal(0)},
     {"id": "negative-amount-is-not-money", "amount": Decimal("-1.00")},
     {"id": "fractions-of-a-cent-are-never-rounded", "amount": Decimal("1.001")},
-    {"id": "amount-overflowing-numeric-18-2-is-rejected", "amount": Decimal(10000000000000000)},
+    {
+        "id": "amount-overflowing-numeric-18-2-is-rejected",
+        "amount": Decimal(10000000000000000),
+    },
     {"id": "nan-is-not-money", "amount": Decimal("NaN")},
     {"id": "infinity-is-not-money", "amount": Decimal("Infinity")},
 ]

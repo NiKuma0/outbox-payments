@@ -36,17 +36,30 @@ def retries_so_far(message: RabbitMessage, policy: RetryPolicy) -> int:
 
 class FailureRouter:
     def __init__(
-        self, broker: RabbitBroker, policy: RetryPolicy, *, confirm_timeout_seconds: float = 5.0
+        self,
+        broker: RabbitBroker,
+        policy: RetryPolicy,
+        *,
+        confirm_timeout_seconds: float = 5.0,
     ) -> None:
         self._broker = broker
         self._policy = policy
         self._timeout = confirm_timeout_seconds
 
     async def route(
-        self, message: RabbitMessage, error: BaseException, *, permanent: bool, now: datetime
+        self,
+        message: RabbitMessage,
+        error: BaseException,
+        *,
+        permanent: bool,
+        now: datetime,
     ) -> Retry | DeadLetter:
         retries = retries_so_far(message, self._policy)
-        decision = DeadLetter() if permanent else self._policy.after_failure(retries_so_far=retries)
+        decision = (
+            DeadLetter()
+            if permanent
+            else self._policy.after_failure(retries_so_far=retries)
+        )
         headers: dict[str, object] = dict(message.headers)
         context = {"event_id": message.message_id, "error": _describe(error)}
         match decision:

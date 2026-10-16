@@ -47,8 +47,12 @@ class PaymentRow(Base):
     __tablename__ = "payments"
     __table_args__ = (
         CheckConstraint("amount > 0", name="amount_positive"),
-        CheckConstraint(f"currency IN ({_sql_in(list(Currency))})", name="currency_known"),
-        CheckConstraint(f"status IN ({_sql_in(list(PaymentStatus))})", name="status_known"),
+        CheckConstraint(
+            f"currency IN ({_sql_in(list(Currency))})", name="currency_known"
+        ),
+        CheckConstraint(
+            f"status IN ({_sql_in(list(PaymentStatus))})", name="status_known"
+        ),
     )
 
     # uuid7 primary keys are time-ordered: inserts append to the right edge of the

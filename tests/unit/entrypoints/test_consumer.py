@@ -71,7 +71,9 @@ class Harness:
 
     def __post_init__(self) -> None:
         failures: dict[Failure, list[Exception]] = {
-            "webhook-5xx": [WebhookTemporarilyUnavailableError("receiver answered 503")],
+            "webhook-5xx": [
+                WebhookTemporarilyUnavailableError("receiver answered 503")
+            ],
             "webhook-4xx": [WebhookRejectedError("receiver answered 404")],
         }
         self.webhooks = RecordingWebhookSender(failures.get(self.failure, []))
@@ -94,19 +96,25 @@ class Harness:
             "amqp://test/",
             ConsumerResources(
                 process_payment=self.process_payment,
-                policy=RetryPolicy(max_retries=3, base_delay_seconds=1, backoff_factor=4),
+                policy=RetryPolicy(
+                    max_retries=3, base_delay_seconds=1, backoff_factor=4
+                ),
                 clock=self.clock,
             ),
             prefetch_count=1,
         )
         for name in DESTINATIONS:
-            broker.subscriber(RabbitQueue(name, declare=False))(self._capture_into(name))
+            broker.subscriber(RabbitQueue(name, declare=False))(
+                self._capture_into(name)
+            )
         return broker
 
     def _capture_into(self, queue: str) -> Callable[[RabbitMessage], Awaitable[None]]:
         async def capture(message: RabbitMessage) -> None:
             headers = cast("dict[str, object]", message.headers)
-            self.captured.append(Captured(queue, message.body, headers, message.message_id))
+            self.captured.append(
+                Captured(queue, message.body, headers, message.message_id)
+            )
 
         return capture
 
@@ -129,7 +137,11 @@ async def test_consumer_outcome(case: ConsumerOutcomeCase) -> None:
     payload = await harness.accept_payment()
     if case["failure"] == "unknown-payment":
         payload = {**payload, "payment_id": str(uuid7())}
-    body = b"{not json" if case["failure"] == "malformed-body" else json.dumps(payload).encode()
+    body = (
+        b"{not json"
+        if case["failure"] == "malformed-body"
+        else json.dumps(payload).encode()
+    )
     retry_count = case.get("incoming_retry_count")
 
     async with TestRabbitBroker(harness.broker()) as broker:
@@ -161,10 +173,14 @@ async def test_successful_message_completes_payment_and_sends_webhook() -> None:
 
     async with TestRabbitBroker(harness.broker()) as broker:
         await broker.publish(
-            json.dumps(payload).encode(), exchange=PAYMENTS_EXCHANGE, routing_key=ROUTING_KEY
+            json.dumps(payload).encode(),
+            exchange=PAYMENTS_EXCHANGE,
+            routing_key=ROUTING_KEY,
         )
 
     [payment] = harness.store.payments.values()
     assert payment.status is PaymentStatus.SUCCEEDED
     assert payment.webhook_delivered_at is not None
-    assert [str(w.webhook_id) for w in harness.webhooks.delivered] == [payload["event_id"]]
+    assert [str(w.webhook_id) for w in harness.webhooks.delivered] == [
+        payload["event_id"]
+    ]

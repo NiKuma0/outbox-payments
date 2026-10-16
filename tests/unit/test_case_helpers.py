@@ -9,7 +9,10 @@ class _Case(TypedDict):
 
 
 def test_as_params_uses_case_id_as_pytest_id() -> None:
-    cases: list[_Case] = [{"id": "first-case", "value": 1}, {"id": "second-case", "value": 2}]
+    cases: list[_Case] = [
+        {"id": "first-case", "value": 1},
+        {"id": "second-case", "value": 2},
+    ]
 
     params = as_params(cases)
 

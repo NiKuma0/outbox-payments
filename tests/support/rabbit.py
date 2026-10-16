@@ -15,12 +15,18 @@ from outbox_payments.adapters.messaging.topology import declare_topology
 
 RABBITMQ_URL = os.environ.get("TEST_RABBITMQ_URL", "amqp://guest:guest@localhost:5672/")
 TEST_POLICY = RetryPolicy(max_retries=3, base_delay_seconds=1, backoff_factor=4)
-ALL_QUEUES = [PAYMENTS_QUEUE, *(level.queue for level in TEST_POLICY.levels), DEAD_LETTER_QUEUE]
+ALL_QUEUES = [
+    PAYMENTS_QUEUE,
+    *(level.queue for level in TEST_POLICY.levels),
+    DEAD_LETTER_QUEUE,
+]
 
 
 def confirming_broker(url: str = RABBITMQ_URL) -> RabbitBroker:
     return RabbitBroker(
-        url, default_channel=Channel(publisher_confirms=True, on_return_raises=True), logger=None
+        url,
+        default_channel=Channel(publisher_confirms=True, on_return_raises=True),
+        logger=None,
     )
 
 

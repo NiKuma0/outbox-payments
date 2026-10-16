@@ -7,7 +7,9 @@ from tests.cases.adapters.messaging.retry import RETRY_DECISION_CASES, RetryDeci
 
 @pytest.mark.parametrize("case", as_params(RETRY_DECISION_CASES))
 def test_retry_decision(case: RetryDecisionCase) -> None:
-    policy = RetryPolicy(max_retries=case["max_retries"], base_delay_seconds=1, backoff_factor=4)
+    policy = RetryPolicy(
+        max_retries=case["max_retries"], base_delay_seconds=1, backoff_factor=4
+    )
 
     decision = policy.after_failure(retries_so_far=case["retries_so_far"])
 

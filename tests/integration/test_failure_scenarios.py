@@ -61,7 +61,9 @@ class World:
                 outbox=SqlOutboxRepository(session),
                 transaction=session,
                 clock=SystemClock(),
-            ).execute(replace(CreatePaymentCommand(**BASE_REQUEST), idempotency_key=key))
+            ).execute(
+                replace(CreatePaymentCommand(**BASE_REQUEST), idempotency_key=key)
+            )
             [message] = await SqlOutboxRepository(session).claim_batch(1)
         return payment, message.id
 
@@ -83,7 +85,9 @@ class World:
 
     async def stored(self, payment: Payment) -> Payment:
         async with self.sessions() as session:
-            return await GetPayment(payments=SqlPaymentRepository(session)).execute(payment.id)
+            return await GetPayment(payments=SqlPaymentRepository(session)).execute(
+                payment.id
+            )
 
 
 @pytest.fixture

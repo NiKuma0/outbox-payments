@@ -67,11 +67,15 @@ class ConsumerResources:
     clock: Clock
 
 
-def create_broker(url: str, resources: ConsumerResources, *, prefetch_count: int) -> RabbitBroker:
+def create_broker(
+    url: str, resources: ConsumerResources, *, prefetch_count: int
+) -> RabbitBroker:
     broker = RabbitBroker(
         url,
         default_channel=Channel(
-            prefetch_count=prefetch_count, publisher_confirms=True, on_return_raises=True
+            prefetch_count=prefetch_count,
+            publisher_confirms=True,
+            on_return_raises=True,
         ),
         graceful_timeout=30,  # > max processing time (5 s gateway + 5 s webhook)
         logger=None,
@@ -81,10 +85,14 @@ def create_broker(url: str, resources: ConsumerResources, *, prefetch_count: int
     def provide_process_payment() -> ProcessPaymentFactory:
         return resources.process_payment
 
-    @broker.subscriber(payments_queue(), PAYMENTS_EXCHANGE, ack_policy=AckPolicy.NACK_ON_ERROR)
+    @broker.subscriber(
+        payments_queue(), PAYMENTS_EXCHANGE, ack_policy=AckPolicy.NACK_ON_ERROR
+    )
     async def on_payment_created(  # pyright: ignore[reportUnusedFunction]
         message: RabbitMessage,
-        process_payment: Annotated[ProcessPaymentFactory, Depends(provide_process_payment)],
+        process_payment: Annotated[
+            ProcessPaymentFactory, Depends(provide_process_payment)
+        ],
     ) -> None:
         # Returning normally acks. If routing a failure itself fails (broker trouble),
         # the exception nacks with requeue, so the message is never lost.
@@ -93,7 +101,9 @@ def create_broker(url: str, resources: ConsumerResources, *, prefetch_count: int
             # One session per message, opened inside the try: a database outage is
             # routed to a retry queue like any other transient failure.
             async with process_payment() as use_case:
-                await use_case.execute(payment_id=event.payment_id, event_id=event.event_id)
+                await use_case.execute(
+                    payment_id=event.payment_id, event_id=event.event_id
+                )
         except Exception as exc:  # noqa: BLE001 - every failure is routed, see is_permanent
             await failures.route(
                 message, exc, permanent=is_permanent(exc), now=resources.clock.now()
@@ -153,7 +163,9 @@ def create_app(settings: Settings) -> FastStream:
 
     async def start_heartbeat() -> None:
         heartbeat.append(
-            asyncio.create_task(beat_forever(DEFAULT_PATH, partial(broker.ping, timeout=2.0)))
+            asyncio.create_task(
+                beat_forever(DEFAULT_PATH, partial(broker.ping, timeout=2.0))
+            )
         )
 
     async def stop_heartbeat() -> None:

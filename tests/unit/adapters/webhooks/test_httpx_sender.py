@@ -30,7 +30,9 @@ EXCEPTIONS: dict[str, Callable[[httpx.Request], Exception]] = {
 }
 
 
-def sender_answering(case: WebhookResponseCase, seen: list[httpx.Request]) -> HttpxWebhookSender:
+def sender_answering(
+    case: WebhookResponseCase, seen: list[httpx.Request]
+) -> HttpxWebhookSender:
     def handler(request: httpx.Request) -> httpx.Response:
         seen.append(request)
         if "raises" in case:
@@ -63,7 +65,9 @@ async def test_webhook_response_classification(case: WebhookResponseCase) -> Non
 
 async def test_request_carries_webhook_id_and_json_payload() -> None:
     seen: list[httpx.Request] = []
-    sender = sender_answering({"id": "ok", "status_code": 200, "expected": "delivered"}, seen)
+    sender = sender_answering(
+        {"id": "ok", "status_code": 200, "expected": "delivered"}, seen
+    )
 
     await sender.send(NOTIFICATION)
 

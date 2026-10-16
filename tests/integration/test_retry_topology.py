@@ -11,7 +11,9 @@ from tests.support.rabbit import drain
 pytestmark = pytest.mark.anyio
 
 
-async def wait_for_messages(broker: RabbitBroker, queue: str, *, within: float) -> list[bytes]:
+async def wait_for_messages(
+    broker: RabbitBroker, queue: str, *, within: float
+) -> list[bytes]:
     deadline = time.monotonic() + within
     while time.monotonic() < deadline:
         if messages := await drain(broker, queue):
@@ -25,7 +27,10 @@ async def test_retry_queue_returns_message_to_the_work_queue_after_its_ttl(
 ) -> None:
     started = time.monotonic()
     await broker.publish(
-        b'{"hello": 1}', queue="payments.new.retry.1", headers={"x-retry-count": 1}, persist=True
+        b'{"hello": 1}',
+        queue="payments.new.retry.1",
+        headers={"x-retry-count": 1},
+        persist=True,
     )
 
     bodies = await wait_for_messages(broker, "payments.new", within=5)
@@ -35,7 +40,9 @@ async def test_retry_queue_returns_message_to_the_work_queue_after_its_ttl(
     assert 0.9 <= elapsed < 4
 
 
-async def test_longer_retry_level_holds_the_message_longer(broker: RabbitBroker) -> None:
+async def test_longer_retry_level_holds_the_message_longer(
+    broker: RabbitBroker,
+) -> None:
     await broker.publish(b"slow", queue="payments.new.retry.2", persist=True)
     await broker.publish(b"fast", queue="payments.new.retry.1", persist=True)
 

@@ -20,7 +20,9 @@ URL = "/api/v1/payments"
 PROBLEM_JSON = "application/problem+json"
 
 
-def body_with(overrides: dict[str, object], removed: list[str] | None = None) -> dict[str, object]:
+def body_with(
+    overrides: dict[str, object], removed: list[str] | None = None
+) -> dict[str, object]:
     body = {**VALID_BODY, **overrides}
     for field in removed or []:
         del body[field]
@@ -42,11 +44,17 @@ async def test_create_payment_validation(
         assert response.headers["content-type"] == PROBLEM_JSON
         problem = response.json()
         assert problem["status"] == 422
-        assert case["expected_error_field"] in {error["field"] for error in problem["errors"]}
+        assert case["expected_error_field"] in {
+            error["field"] for error in problem["errors"]
+        }
 
 
-async def test_accepted_payment_response(client: AsyncClient, store: InMemoryStore) -> None:
-    response = await client.post(URL, json=VALID_BODY, headers={"Idempotency-Key": FIRST_KEY})
+async def test_accepted_payment_response(
+    client: AsyncClient, store: InMemoryStore
+) -> None:
+    response = await client.post(
+        URL, json=VALID_BODY, headers={"Idempotency-Key": FIRST_KEY}
+    )
 
     assert response.status_code == 202
     body = response.json()
@@ -58,7 +66,9 @@ async def test_accepted_payment_response(client: AsyncClient, store: InMemorySto
 
 
 @pytest.mark.parametrize("case", as_params(IDEMPOTENCY_KEY_HEADER_CASES))
-async def test_idempotency_key_header(case: IdempotencyKeyHeaderCase, client: AsyncClient) -> None:
+async def test_idempotency_key_header(
+    case: IdempotencyKeyHeaderCase, client: AsyncClient
+) -> None:
     response = await client.post(URL, json=VALID_BODY, headers=case["headers"])
 
     assert response.status_code == case["expected_status"], response.text
@@ -67,8 +77,12 @@ async def test_idempotency_key_header(case: IdempotencyKeyHeaderCase, client: As
 
 
 @pytest.mark.parametrize("case", as_params(HTTP_IDEMPOTENCY_CASES))
-async def test_idempotent_create(case: HttpIdempotencyCase, client: AsyncClient) -> None:
-    first = await client.post(URL, json=VALID_BODY, headers={"Idempotency-Key": FIRST_KEY})
+async def test_idempotent_create(
+    case: HttpIdempotencyCase, client: AsyncClient
+) -> None:
+    first = await client.post(
+        URL, json=VALID_BODY, headers={"Idempotency-Key": FIRST_KEY}
+    )
 
     second = await client.post(
         URL,
