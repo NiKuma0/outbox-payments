@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from typing import Annotated, cast
 
 from fastapi import Depends, Header, Request
+from fastapi.security import APIKeyHeader
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from outbox_payments.adapters.db.repositories import (
@@ -76,7 +77,7 @@ def get_readiness_probes(state: StateDep) -> Mapping[str, Probe]:
 
 async def require_api_key(
     state: StateDep,
-    x_api_key: Annotated[str | None, Header(alias="X-API-Key")] = None,
+    x_api_key: Annotated[str | None, Depends(APIKeyHeader(name="X-API-Key"))] = None,
 ) -> None:
     expected = state.settings.api_key.get_secret_value().encode()
     # compare_digest: the comparison time does not depend on how many bytes match.
