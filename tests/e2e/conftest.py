@@ -5,6 +5,7 @@ import os
 import time
 from collections.abc import AsyncIterator, Awaitable, Callable
 
+import httpx
 import pytest
 from httpx import AsyncClient
 
@@ -12,6 +13,15 @@ API_URL = os.environ.get("E2E_API_URL", "http://localhost:8000")
 SINK_URL = os.environ.get("E2E_SINK_URL", "http://localhost:8080")
 RABBITMQ_API_URL = os.environ.get("E2E_RABBITMQ_API_URL", "http://localhost:15672/api")
 API_KEY = os.environ.get("E2E_API_KEY", "dev-api-key")
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _require_stack() -> None:  # pyright: ignore[reportUnusedFunction]
+    """Skip e2e when the compose stack is not up, so a bare `pytest` stays green."""
+    try:
+        httpx.get(f"{API_URL}/health", timeout=2).raise_for_status()
+    except httpx.HTTPError:
+        pytest.skip(f"compose stack is not running at {API_URL}; use `make test-e2e`")
 
 
 @pytest.fixture

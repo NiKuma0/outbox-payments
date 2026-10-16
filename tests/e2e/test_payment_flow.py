@@ -115,7 +115,9 @@ async def test_api_keeps_accepting_while_rabbitmq_is_down_and_outbox_catches_up(
         assert still_pending["status"] == "pending"
         assert await deliveries(sink, payment_id) == []
     finally:
-        await asyncio.to_thread(compose, "start", "rabbitmq")
+        # `start` returns before the broker accepts connections; wait for the healthcheck
+        # so tests that run after this one do not hit a half-booted RabbitMQ.
+        await asyncio.to_thread(compose, "up", "-d", "--wait", "rabbitmq")
 
     async def delivered() -> list[dict[str, Any]] | None:
         return await deliveries(sink, payment_id) or None
