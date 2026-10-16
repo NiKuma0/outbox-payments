@@ -1,0 +1,64 @@
+[project]
+name = "outbox-payments"
+version = "0.1.0"
+description = "Asynchronous payment processing: a reference implementation of the transactional outbox, idempotent consumers and TTL-queue retries."
+readme = "README.md"
+authors = [{ name = "nikuma", email = "ybr811@gmail.com" }]
+requires-python = ">=3.14"
+dependencies = [
+    "alembic>=1.20.0",
+    "asyncpg>=0.32.0",
+    "fastapi>=0.143.2",
+    "faststream[rabbit]>=0.7.7",
+    "httpx>=0.28.1",
+    "pydantic>=2.14.1",
+    "pydantic-settings>=2.16.0",
+    "sqlalchemy[asyncio]>=2.1.4",
+    "uvicorn>=0.54.0",
+]
+
+[build-system]
+requires = ["uv_build>=0.11.16,<0.12.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pyright>=1.1.414",
+    "pytest>=9.1.1",
+    "ruff>=0.17.1",
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = [
+    "S101",     # assert is how pytest works
+    "PLR2004",  # magic values are the point of a test
+    "S105", "S106",  # fake secrets
+]
+"migrations/**" = ["ERA001"]
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"
+
+[tool.ruff.lint.flake8-pytest-style]
+fixture-parentheses = false
+mark-parentheses = false
+
+[tool.pyright]
+typeCheckingMode = "strict"
+pythonVersion = "3.14"
+include = ["src", "tests", "tools", "migrations"]
+venvPath = "."
+venv = ".venv"
+reportMissingTypeStubs = false
+
+[tool.pytest.ini_options]
+minversion = "9.0"
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = ["--strict-markers", "--strict-config", "-ra", "--import-mode=importlib"]
+markers = [
+    "unit: fast, in-process tests on fakes; no network, no sleeping",
+    "integration: real Postgres/RabbitMQ from docker compose",
+    "e2e: the whole docker compose stack, driven over HTTP",
+]
+filterwarnings = ["error"]

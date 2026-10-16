@@ -1,0 +1,135 @@
+name: outbox-payments
+
+x-app: &app
+  build: .
+  image: outbox-payments:local
+  restart: unless-stopped
+  environment: &app-env
+    DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-payments}:${POSTGRES_PASSWORD:-payments}@postgres:5432/${POSTGRES_DB:-payments}
+    RABBITMQ_URL: amqp://${RABBITMQ_USER:-guest}:${RABBITMQ_PASSWORD:-guest}@rabbitmq:5672/
+    API_KEY: ${API_KEY:-dev-api-key}
+    RELAY_BATCH_SIZE: ${RELAY_BATCH_SIZE:-100}
+    RELAY_POLL_INTERVAL_SECONDS: ${RELAY_POLL_INTERVAL_SECONDS:-0.5}
+    OUTBOX_RETENTION_DAYS: ${OUTBOX_RETENTION_DAYS:-7}
+    OUTBOX_CLEANUP_INTERVAL_SECONDS: ${OUTBOX_CLEANUP_INTERVAL_SECONDS:-3600}
+    CONSUMER_PREFETCH_COUNT: ${CONSUMER_PREFETCH_COUNT:-10}
+    MAX_RETRIES: ${MAX_RETRIES:-3}
+    RETRY_BASE_DELAY_SECONDS: ${RETRY_BASE_DELAY_SECONDS:-1}
+    RETRY_BACKOFF_FACTOR: ${RETRY_BACKOFF_FACTOR:-4}
+    WEBHOOK_TIMEOUT_SECONDS: ${WEBHOOK_TIMEOUT_SECONDS:-5}
+    PAYMENT_MIN_DELAY_SECONDS: ${PAYMENT_MIN_DELAY_SECONDS:-2}
+    PAYMENT_MAX_DELAY_SECONDS: ${PAYMENT_MAX_DELAY_SECONDS:-5}
+    PAYMENT_SUCCESS_RATE: ${PAYMENT_SUCCESS_RATE:-0.9}
+    LOG_LEVEL: ${LOG_LEVEL:-INFO}
+
+x-worker-healthcheck: &worker-healthcheck
+  test: ["CMD", "python", "-m", "outbox_payments.entrypoints.heartbeat", "/tmp/heartbeat", "30"]
+  interval: 5s
+  timeout: 3s
+  retries: 6
+  start_period: 10s
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-payments}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-payments}
+      POSTGRES_DB: ${POSTGRES_DB:-payments}
+    ports:
+      - "${POSTGRES_HOST_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  rabbitmq:
+    image: rabbitmq:4-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
+    ports:
+      - "${RABBITMQ_HOST_PORT:-5672}:5672"
+      - "${RABBITMQ_UI_HOST_PORT:-15672}:15672"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "check_port_connectivity"]
+      interval: 5s
+      timeout: 10s
+      retries: 30
+
+  migrations:
+    <<: *app
+    command: ["alembic", "upgrade", "head"]
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # A one-off job: "healthy" for it means "exited 0", which dependants express
+    # with service_completed_successfully.
+    healthcheck:
+      disable: true
+
+  api:
+    <<: *app
+    ports:
+      - "${API_HOST_PORT:-8000}:8000"
+    depends_on:
+      migrations:
+        condition: service_completed_successfully
+    # Liveness, not /ready: the API must keep accepting payments while RabbitMQ is
+    # down (that is what the outbox is for), so the broker must not gate it.
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=2)"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+  relay:
+    <<: *app
+    command: ["python", "-m", "outbox_payments.entrypoints.relay"]
+    stop_grace_period: 15s
+    depends_on:
+      migrations:
+        condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
+    healthcheck: *worker-healthcheck
+
+  consumer:
+    <<: *app
+    command: ["python", "-m", "outbox_payments.entrypoints.consumer"]
+    stop_grace_period: 35s  # > broker graceful_timeout (30 s)
+    deploy:
+      replicas: 1  # exactly one consumer, see docs/ARCHITECTURE.md
+    depends_on:
+      migrations:
+        condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
+      webhook-sink:
+        condition: service_healthy
+    healthcheck: *worker-healthcheck
+
+  webhook-sink:
+    <<: *app
+    command: ["uvicorn", "--factory", "tools.webhook_sink.app:create_app", "--host", "0.0.0.0", "--port", "8080", "--no-access-log"]
+    environment:
+      WEBHOOK_SINK_FAIL: ${WEBHOOK_SINK_FAIL:-false}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    ports:
+      - "${WEBHOOK_SINK_HOST_PORT:-8080}:8080"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health', timeout=2)"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  postgres-data:
+  rabbitmq-data:
