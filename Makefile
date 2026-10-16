@@ -30,8 +30,14 @@ infra: ## Start only Postgres and RabbitMQ (for integration tests)
 test-integration: infra ## Tests against real Postgres/RabbitMQ from compose
 	$(PYTEST) -m integration
 
-test-e2e: up ## Black-box tests against the whole compose stack
+OUTAGE_TESTS := tests/e2e/test_rabbitmq_outage.py
+
+test-e2e: up ## Black-box tests against the whole compose stack, incl. a RabbitMQ outage
 	$(PYTEST) -m e2e
+	$(COMPOSE) stop rabbitmq
+	E2E_OUTAGE_PHASE=down $(PYTEST) $(OUTAGE_TESTS); status=$$?; \
+		$(COMPOSE) up -d --wait rabbitmq && exit $$status
+	E2E_OUTAGE_PHASE=recovered $(PYTEST) $(OUTAGE_TESTS)
 
 up: ## Build and start the whole stack, waiting for health checks
 	$(COMPOSE) up -d --build --wait

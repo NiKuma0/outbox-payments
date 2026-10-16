@@ -200,10 +200,10 @@ src/outbox_payments/
 migrations/            Alembic, async env
 tests/
   cases/               test DATA only, mirrors the test tree
-  fakes/               in-memory port implementations (with real transaction semantics)
-  support/             builders and Postgres/RabbitMQ plumbing
+  fakes/               clock, gateway and webhook-sender stand-ins (no storage)
+  support/             builders, autospec'd repository mocks, Postgres/RabbitMQ plumbing
   unit/                domain, use cases, API, handler via TestRabbitBroker (no I/O)
-  contract/            one suite per port, run against the fake AND the real adapter
+  contract/            one suite per port, pinning down what the mocks assume
   integration/         repositories, relay, TTL/DLX topology, crash scenarios (compose infra)
   e2e/                 the whole compose stack over HTTP
 tools/webhook_sink/    demo webhook receiver
@@ -226,14 +226,18 @@ make test-e2e          # starts the whole stack
 
 | Level | What | Infrastructure |
 |---|---|---|
-| `unit` | domain, use cases on fakes, API through `httpx.ASGITransport`, the message handler through `TestRabbitBroker`, adapters with `httpx.MockTransport` | none; the clock, randomness and sleeping are injected, nothing ever waits |
+| `unit` | domain, use cases with mocked repositories, API through `httpx.ASGITransport`, the message handler through `TestRabbitBroker`, adapters with `httpx.MockTransport` | none; the clock, randomness and sleeping are injected, nothing ever waits |
 | `integration` | SQL repositories, relay with two concurrent replicas, TTL/DLX on a real broker (TestRabbitBroker does not emulate them), crash scenarios | Postgres + RabbitMQ from compose (separate `payments_test` database) |
 | `e2e` | create -> webhook; 5xx -> 3 retries -> DLQ; replay with the same key; RabbitMQ outage -> outbox catches up | the full compose stack |
 
 The level comes from the directory (a conftest hook adds the marker), so a test
-cannot be filed under the wrong one. Contract suites in `tests/contract/` take the
-level from their backend parameter: the in-memory run is `unit`, the SQL run is
-`integration`. If a fake drifts from Postgres semantics, the two runs disagree.
+cannot be filed under the wrong one.
+
+Unit tests mock the repositories (`tests/support/mocks.py`, `create_autospec` of the
+port Protocols, so a call the port does not declare fails the test). The mocks take
+the database's guarantees for granted (the unique idempotency key, rollback,
+isolation, `SKIP LOCKED`); the repository suites in `tests/contract/` check exactly
+those against real Postgres and are `integration` tests.
 
 ### Data-driven tests
 

@@ -1,4 +1,4 @@
-"""PaymentRepository + Transaction contract, shared by the fake and the SQL adapter."""
+"""PaymentRepository + Transaction contract of the SQL adapter: what the unit-test mocks assume."""
 
 import pytest
 
@@ -6,7 +6,7 @@ from outbox_payments.domain import ChargeOutcome, PaymentStatus
 from tests.contract.conftest import Backend
 from tests.support.builders import T0, make_payment
 
-pytestmark = pytest.mark.anyio
+pytestmark = [pytest.mark.anyio, pytest.mark.integration]
 
 
 async def test_committed_payment_round_trips(backend: Backend) -> None:

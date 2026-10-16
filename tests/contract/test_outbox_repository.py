@@ -1,4 +1,4 @@
-"""OutboxRepository contract, shared by the fake and the SQL adapter."""
+"""OutboxRepository contract of the SQL adapter: what the unit-test mocks assume."""
 
 from datetime import timedelta
 
@@ -7,7 +7,7 @@ import pytest
 from tests.contract.conftest import Backend
 from tests.support.builders import T0, make_payment
 
-pytestmark = pytest.mark.anyio
+pytestmark = [pytest.mark.anyio, pytest.mark.integration]
 
 
 async def seed(backend: Backend, count: int) -> list[str]:

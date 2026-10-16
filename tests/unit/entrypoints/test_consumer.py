@@ -1,4 +1,4 @@
-"""The FastStream handler end to end in-process, via TestRabbitBroker and fakes.
+"""The FastStream handler end to end in-process, via TestRabbitBroker and mocks.
 
 TestRabbitBroker does not emulate TTLs or dead-lettering; that half of the retry
 mechanism is covered against a real RabbitMQ in tests/integration/test_retry_topology.py.
@@ -9,6 +9,7 @@ from collections.abc import AsyncGenerator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from typing import cast
+from unittest.mock import Mock
 from uuid import uuid7
 
 import pytest
@@ -20,15 +21,10 @@ from outbox_payments.application.errors import (
     WebhookRejectedError,
     WebhookTemporarilyUnavailableError,
 )
-from outbox_payments.application.use_cases.create_payment import (
-    CreatePayment,
-    CreatePaymentCommand,
-)
 from outbox_payments.application.use_cases.process_payment import ProcessPayment
-from outbox_payments.domain import PaymentStatus
+from outbox_payments.domain import Payment, PaymentStatus
 from outbox_payments.entrypoints.consumer import ConsumerResources, create_broker
 from tests.cases._helpers import as_params
-from tests.cases.application.create_payment import BASE_REQUEST
 from tests.cases.entrypoints.consumer import (
     CONSUMER_OUTCOME_CASES,
     ConsumerOutcomeCase,
@@ -36,12 +32,9 @@ from tests.cases.entrypoints.consumer import (
 )
 from tests.fakes.clock import FrozenClock
 from tests.fakes.provider import FakePaymentProvider
-from tests.fakes.store import (
-    InMemoryOutboxRepository,
-    InMemoryPaymentRepository,
-    InMemoryStore,
-)
 from tests.fakes.webhooks import RecordingWebhookSender
+from tests.support.builders import make_payment
+from tests.support.mocks import mock_payments, mock_transaction
 
 pytestmark = pytest.mark.anyio
 
@@ -64,12 +57,14 @@ class Captured:
 @dataclass
 class Harness:
     failure: Failure
-    store: InMemoryStore = field(default_factory=InMemoryStore)
     clock: FrozenClock = field(default_factory=FrozenClock)
     provider: FakePaymentProvider = field(default_factory=FakePaymentProvider)
     captured: list[Captured] = field(default_factory=list[Captured])
+    transaction: Mock = field(default_factory=mock_transaction)
 
     def __post_init__(self) -> None:
+        self.payment, self.message = make_payment()
+        self.payments = mock_payments(self.payment)
         failures: dict[Failure, list[Exception]] = {
             "webhook-5xx": [
                 WebhookTemporarilyUnavailableError("receiver answered 503")
@@ -82,12 +77,11 @@ class Harness:
     async def process_payment(self) -> AsyncGenerator[ProcessPayment]:
         if self.failure == "database-down":
             raise ConnectionRefusedError("postgres:5432")
-        tx = self.store.begin()
         yield ProcessPayment(
-            payments=InMemoryPaymentRepository(tx),
+            payments=self.payments,
             provider=self.provider,
             webhooks=self.webhooks,
-            transaction=tx,
+            transaction=self.transaction,
             clock=self.clock,
         )
 
@@ -118,23 +112,18 @@ class Harness:
 
         return capture
 
-    async def accept_payment(self) -> dict[str, str]:
-        tx = self.store.begin()
-        payment = await CreatePayment(
-            payments=InMemoryPaymentRepository(tx),
-            outbox=InMemoryOutboxRepository(tx),
-            transaction=tx,
-            clock=self.clock,
-        ).execute(CreatePaymentCommand(**BASE_REQUEST))
-        [message] = self.store.outbox.values()
-        assert message.aggregate_id == payment.id
-        return cast("dict[str, str]", message.payload)
+    def event_payload(self) -> dict[str, str]:
+        """What the relay publishes for the stored payment."""
+        return cast("dict[str, str]", self.message.payload)
+
+    def delivered_with(self) -> Payment:
+        return self.payments.mark_webhook_delivered.await_args.args[0]
 
 
 @pytest.mark.parametrize("case", as_params(CONSUMER_OUTCOME_CASES))
 async def test_consumer_outcome(case: ConsumerOutcomeCase) -> None:
     harness = Harness(case["failure"])
-    payload = await harness.accept_payment()
+    payload = harness.event_payload()
     if case["failure"] == "unknown-payment":
         payload = {**payload, "payment_id": str(uuid7())}
     body = (
@@ -169,7 +158,7 @@ async def test_consumer_outcome(case: ConsumerOutcomeCase) -> None:
 
 async def test_successful_message_completes_payment_and_sends_webhook() -> None:
     harness = Harness("none")
-    payload = await harness.accept_payment()
+    payload = harness.event_payload()
 
     async with TestRabbitBroker(harness.broker()) as broker:
         await broker.publish(
@@ -178,7 +167,7 @@ async def test_successful_message_completes_payment_and_sends_webhook() -> None:
             routing_key=ROUTING_KEY,
         )
 
-    [payment] = harness.store.payments.values()
+    payment = harness.delivered_with()
     assert payment.status is PaymentStatus.SUCCEEDED
     assert payment.webhook_delivered_at is not None
     assert [str(w.webhook_id) for w in harness.webhooks.delivered] == [

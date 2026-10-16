@@ -1,8 +1,7 @@
-"""Backends for the port contract suites.
+"""The SQL backend for the repository contract suites.
 
-Every contract test runs twice: against the in-memory fake (marked ``unit``) and
-against the SQL adapter on real Postgres (marked ``integration``). If the fake ever
-drifts from Postgres semantics, the ``unit`` and ``integration`` runs disagree.
+Unit tests mock the repositories; these suites pin down what the mocks take for
+granted (the unique idempotency key, rollback, isolation, row locks) on real Postgres.
 """
 
 from collections.abc import AsyncGenerator, AsyncIterator
@@ -23,11 +22,6 @@ from outbox_payments.application.ports import (
     PaymentRepository,
     Transaction,
 )
-from tests.fakes.store import (
-    InMemoryOutboxRepository,
-    InMemoryPaymentRepository,
-    InMemoryStore,
-)
 from tests.support.postgres import prepare_database, truncate_all
 
 
@@ -42,21 +36,6 @@ class Backend(Protocol):
     def session(self) -> AbstractAsyncContextManager[UnitOfWork]:
         """A fresh transaction; anything not committed is rolled back on exit."""
         ...
-
-
-class MemoryBackend:
-    def __init__(self) -> None:
-        self.store = InMemoryStore()
-
-    @asynccontextmanager
-    async def session(self) -> AsyncGenerator[UnitOfWork]:
-        tx = self.store.begin()
-        try:
-            yield UnitOfWork(
-                InMemoryPaymentRepository(tx), InMemoryOutboxRepository(tx), tx
-            )
-        finally:
-            await tx.rollback()
 
 
 class SqlBackend:
@@ -76,19 +55,8 @@ async def database_url() -> str:
     return await prepare_database()
 
 
-@pytest.fixture(
-    params=[
-        pytest.param("memory", marks=pytest.mark.unit),
-        pytest.param("sql", marks=pytest.mark.integration),
-    ]
-)
-async def backend(
-    request: pytest.FixtureRequest, database_url: str
-) -> AsyncIterator[Backend]:
-    if request.param == "memory":
-        yield MemoryBackend()
-        return
-    # url: str = request.getfixturevalue("database_url")
+@pytest.fixture
+async def backend(database_url: str) -> AsyncIterator[Backend]:
     engine = create_engine(database_url)
     await truncate_all(engine)
     try:

@@ -1,16 +1,22 @@
+from unittest.mock import Mock
+
 import pytest
 from httpx import AsyncClient
 
 from tests.cases.api.create_payment import FIRST_KEY, VALID_BODY
+from tests.support.mocks import serve
 
 pytestmark = pytest.mark.anyio
 
 
-async def test_returns_full_payment_details(client: AsyncClient) -> None:
+async def test_returns_full_payment_details(
+    client: AsyncClient, payments: Mock
+) -> None:
     created = await client.post(
         "/api/v1/payments", json=VALID_BODY, headers={"Idempotency-Key": FIRST_KEY}
     )
     payment_id = created.json()["payment_id"]
+    serve(payments, payments.add_if_absent.await_args.args[0])
 
     response = await client.get(f"/api/v1/payments/{payment_id}")
 

@@ -1,37 +1,15 @@
-import asyncio
 import json
-import subprocess
 from typing import Any
-from uuid import uuid4
 
 import pytest
 from httpx import AsyncClient
 
 from tests.cases.api.create_payment import VALID_BODY
-from tests.e2e.conftest import eventually
+from tests.e2e.conftest import create, deliveries, eventually, new_key
 
 pytestmark = pytest.mark.anyio
 
 FINAL = {"succeeded", "failed"}
-
-
-def new_key() -> str:
-    return f"e2e-{uuid4()}"
-
-
-async def create(api: AsyncClient, key: str, **overrides: object) -> dict[str, Any]:
-    response = await api.post(
-        "/api/v1/payments",
-        json={**VALID_BODY, **overrides},
-        headers={"Idempotency-Key": key},
-    )
-    assert response.status_code == 202, response.text
-    return response.json()
-
-
-async def deliveries(sink: AsyncClient, payment_id: str) -> list[dict[str, Any]]:
-    response = await sink.get("/received", params={"payment_id": payment_id})
-    return response.json()
 
 
 async def test_created_payment_is_processed_and_webhook_reaches_the_sink(
@@ -101,29 +79,3 @@ async def test_failing_receiver_is_retried_three_times_then_dead_lettered(
     assert (
         payment["status"] in FINAL
     )  # the charge itself was committed before the webhook
-
-
-def compose(*args: str) -> None:
-    subprocess.run(["docker", "compose", *args], check=True, capture_output=True)
-
-
-async def test_api_keeps_accepting_while_rabbitmq_is_down_and_outbox_catches_up(
-    api: AsyncClient, sink: AsyncClient
-) -> None:
-    await asyncio.to_thread(compose, "stop", "rabbitmq")
-    try:
-        accepted = await create(api, new_key())
-        payment_id = accepted["payment_id"]
-        await asyncio.sleep(2)
-        still_pending = (await api.get(f"/api/v1/payments/{payment_id}")).json()
-        assert still_pending["status"] == "pending"
-        assert await deliveries(sink, payment_id) == []
-    finally:
-        # `start` returns before the broker accepts connections; wait for the healthcheck
-        # so tests that run after this one do not hit a half-booted RabbitMQ.
-        await asyncio.to_thread(compose, "up", "-d", "--wait", "rabbitmq")
-
-    async def delivered() -> list[dict[str, Any]] | None:
-        return await deliveries(sink, payment_id) or None
-
-    await eventually(delivered, within=90, every=1)

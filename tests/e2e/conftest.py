@@ -4,10 +4,14 @@ import asyncio
 import os
 import time
 from collections.abc import AsyncIterator, Awaitable, Callable
+from typing import Any
+from uuid import uuid4
 
 import httpx
 import pytest
 from httpx import AsyncClient
+
+from tests.cases.api.create_payment import VALID_BODY
 
 API_URL = os.environ.get("E2E_API_URL", "http://localhost:8000")
 SINK_URL = os.environ.get("E2E_SINK_URL", "http://localhost:8080")
@@ -57,3 +61,22 @@ async def eventually[T](
         if time.monotonic() > deadline:
             raise AssertionError(f"condition not met within {within}s")
         await asyncio.sleep(every)
+
+
+def new_key() -> str:
+    return f"e2e-{uuid4()}"
+
+
+async def create(api: AsyncClient, key: str, **overrides: object) -> dict[str, Any]:
+    response = await api.post(
+        "/api/v1/payments",
+        json={**VALID_BODY, **overrides},
+        headers={"Idempotency-Key": key},
+    )
+    assert response.status_code == 202, response.text
+    return response.json()
+
+
+async def deliveries(sink: AsyncClient, payment_id: str) -> list[dict[str, Any]]:
+    response = await sink.get("/received", params={"payment_id": payment_id})
+    return response.json()

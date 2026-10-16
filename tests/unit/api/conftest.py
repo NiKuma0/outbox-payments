@@ -1,6 +1,7 @@
-"""An API wired to in-memory fakes through FastAPI's own dependency overrides."""
+"""An API wired to mocked repositories through FastAPI's own dependency overrides."""
 
 from collections.abc import AsyncIterator
+from unittest.mock import Mock
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -13,11 +14,7 @@ from outbox_payments.entrypoints.api import deps
 from outbox_payments.entrypoints.api.app import create_app
 from tests.cases.api.auth import API_KEY
 from tests.fakes.clock import FrozenClock
-from tests.fakes.store import (
-    InMemoryOutboxRepository,
-    InMemoryPaymentRepository,
-    InMemoryStore,
-)
+from tests.support.mocks import mock_outbox, mock_payments, mock_transaction
 
 
 class ProbeSwitch:
@@ -33,8 +30,18 @@ class ProbeSwitch:
 
 
 @pytest.fixture
-def store() -> InMemoryStore:
-    return InMemoryStore()
+def payments() -> Mock:
+    return mock_payments()
+
+
+@pytest.fixture
+def outbox() -> Mock:
+    return mock_outbox()
+
+
+@pytest.fixture
+def transaction() -> Mock:
+    return mock_transaction()
 
 
 @pytest.fixture
@@ -44,22 +51,21 @@ def probes() -> ProbeSwitch:
 
 @pytest.fixture
 async def client(
-    store: InMemoryStore, probes: ProbeSwitch
+    payments: Mock, outbox: Mock, transaction: Mock, probes: ProbeSwitch
 ) -> AsyncIterator[AsyncClient]:
     app = create_app(Settings(api_key=SecretStr(API_KEY)))
     clock = FrozenClock()
 
     def create_payment() -> CreatePayment:
-        tx = store.begin()
         return CreatePayment(
-            payments=InMemoryPaymentRepository(tx),
-            outbox=InMemoryOutboxRepository(tx),
-            transaction=tx,
+            payments=payments,
+            outbox=outbox,
+            transaction=transaction,
             clock=clock,
         )
 
     def get_payment() -> GetPayment:
-        return GetPayment(payments=InMemoryPaymentRepository(store.begin()))
+        return GetPayment(payments=payments)
 
     app.dependency_overrides[deps.get_create_payment] = create_payment
     app.dependency_overrides[deps.get_get_payment] = get_payment

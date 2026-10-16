@@ -1,3 +1,5 @@
+from unittest.mock import Mock
+
 import pytest
 from httpx import AsyncClient
 
@@ -12,7 +14,6 @@ from tests.cases.api.create_payment import (
     HttpIdempotencyCase,
     IdempotencyKeyHeaderCase,
 )
-from tests.fakes.store import InMemoryStore
 
 pytestmark = pytest.mark.anyio
 
@@ -50,7 +51,7 @@ async def test_create_payment_validation(
 
 
 async def test_accepted_payment_response(
-    client: AsyncClient, store: InMemoryStore
+    client: AsyncClient, payments: Mock, outbox: Mock, transaction: Mock
 ) -> None:
     response = await client.post(
         URL, json=VALID_BODY, headers={"Idempotency-Key": FIRST_KEY}
@@ -61,8 +62,10 @@ async def test_accepted_payment_response(
     assert set(body) == {"payment_id", "status", "created_at"}
     assert body["status"] == "pending"
     assert response.headers["location"] == f"{URL}/{body['payment_id']}"
-    assert [str(p) for p in store.payments] == [body["payment_id"]]
-    assert len(store.outbox) == 1
+    stored = payments.add_if_absent.await_args.args[0]
+    assert str(stored.id) == body["payment_id"]
+    outbox.add.assert_awaited_once()
+    transaction.commit.assert_awaited_once()
 
 
 @pytest.mark.parametrize("case", as_params(IDEMPOTENCY_KEY_HEADER_CASES))
@@ -78,10 +81,15 @@ async def test_idempotency_key_header(
 
 @pytest.mark.parametrize("case", as_params(HTTP_IDEMPOTENCY_CASES))
 async def test_idempotent_create(
-    case: HttpIdempotencyCase, client: AsyncClient
+    case: HttpIdempotencyCase, client: AsyncClient, payments: Mock
 ) -> None:
     first = await client.post(
         URL, json=VALID_BODY, headers={"Idempotency-Key": FIRST_KEY}
+    )
+    # The unique index on the key decides; answer the way Postgres would.
+    payments.add_if_absent.return_value = case["second_key"] != FIRST_KEY
+    payments.get_by_idempotency_key.return_value = (
+        payments.add_if_absent.await_args.args[0]
     )
 
     second = await client.post(

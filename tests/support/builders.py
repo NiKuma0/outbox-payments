@@ -4,18 +4,26 @@ from datetime import UTC, datetime
 from decimal import Decimal
 
 from outbox_payments.application.outbox import OutboxMessage, outbox_message_for
-from outbox_payments.domain import Currency, Money, Payment
+from outbox_payments.domain import Currency, JsonObject, Money, Payment
 
 T0 = datetime(2026, 1, 1, 12, 0, tzinfo=UTC)
 
 
 def make_payment(
-    *, idempotency_key: str = "key-1", now: datetime = T0, request_hash: str = "hash"
+    *,
+    idempotency_key: str = "key-1",
+    now: datetime = T0,
+    request_hash: str = "hash",
+    metadata: JsonObject | None = None,
 ) -> tuple[Payment, OutboxMessage]:
     payment, event = Payment.create(
         money=Money(Decimal("100.00"), Currency.RUB),
         description="Order #42",
-        metadata={"order_id": 42, "nested": {"tags": ["a", "b"]}},
+        metadata=(
+            {"order_id": 42, "nested": {"tags": ["a", "b"]}}
+            if metadata is None
+            else metadata
+        ),
         webhook_url="http://webhook-sink:8080/hook",
         idempotency_key=idempotency_key,
         request_hash=request_hash,

@@ -25,12 +25,13 @@
 - Committing in a FastAPI dependency's teardown would be wrong: teardown runs after
   the response is produced, so a failed commit could follow a `202 Accepted` for a
   payment that does not exist. Committing inside the use case makes "202 implies
-  durable" true by construction (unit-tested with a failing fake commit).
+  durable" true by construction (unit-tested with a mocked commit that raises).
 - `ProcessPayment` commits twice (after the charge, after the webhook). Those commits
   are exactly the resumption points of the consumer state machine.
 - Rollback is implicit (session close). The application has no way to roll back
   explicitly, and does not need one: raising is enough.
 - `expire_on_commit=False`, so objects remain usable after commit without lazy loads
   (which would fail in async code anyway).
-- The in-memory fake implements the same contract (snapshot, buffered writes, commit
-  applies only touched rows, row locks), verified by the contract suites.
+- Unit tests mock `Transaction` and the repositories; the transactional behaviour
+  (rollback on close, isolation, row locks) is verified on real Postgres by the
+  contract suites.

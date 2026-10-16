@@ -1,3 +1,5 @@
+from unittest.mock import Mock, call
+
 import pytest
 
 from outbox_payments.application.errors import IdempotencyKeyConflictError
@@ -14,23 +16,30 @@ from tests.cases.application.create_payment import (
     IdempotencyCase,
 )
 from tests.fakes.clock import FrozenClock
-from tests.fakes.store import (
-    InMemoryOutboxRepository,
-    InMemoryPaymentRepository,
-    InMemoryStore,
-    InMemoryTransaction,
-)
+from tests.support.mocks import mock_outbox, mock_payments, mock_transaction
 
 pytestmark = pytest.mark.anyio
 
 
-def use_case(tx: InMemoryTransaction, clock: FrozenClock) -> CreatePayment:
-    return CreatePayment(
-        payments=InMemoryPaymentRepository(tx),
-        outbox=InMemoryOutboxRepository(tx),
-        transaction=tx,
-        clock=clock,
-    )
+class Ports:
+    def __init__(self) -> None:
+        # One parent mock, so the order of calls across the ports can be asserted.
+        self.calls = Mock()
+        self.calls.attach_mock(mock_payments(), "payments")
+        self.calls.attach_mock(mock_outbox(), "outbox")
+        self.calls.attach_mock(mock_transaction(), "transaction")
+        self.payments: Mock = self.calls.payments
+        self.outbox: Mock = self.calls.outbox
+        self.transaction: Mock = self.calls.transaction
+        self.clock = FrozenClock()
+
+    def use_case(self) -> CreatePayment:
+        return CreatePayment(
+            payments=self.payments,
+            outbox=self.outbox,
+            transaction=self.transaction,
+            clock=self.clock,
+        )
 
 
 def command(request: CreatePaymentRequest) -> CreatePaymentCommand:
@@ -38,45 +47,50 @@ def command(request: CreatePaymentRequest) -> CreatePaymentCommand:
 
 
 async def test_payment_and_its_event_are_committed_together() -> None:
-    store, clock = InMemoryStore(), FrozenClock()
+    ports = Ports()
 
-    payment = await use_case(store.begin(), clock).execute(command(BASE_REQUEST))
+    payment = await ports.use_case().execute(command(BASE_REQUEST))
 
     assert payment.status is PaymentStatus.PENDING
-    assert payment.created_at == clock.now()
-    assert list(store.payments) == [payment.id]
-    [message] = store.outbox.values()
+    assert payment.created_at == ports.clock.now()
+    message = ports.outbox.add.await_args.args[0]
     assert message.aggregate_id == payment.id
     assert message.event_type == "payment.created"
     assert message.payload["payment_id"] == str(payment.id)
     assert message.published_at is None
-    assert store.commits == 1
+    assert ports.calls.mock_calls == [
+        call.payments.add_if_absent(payment),
+        call.outbox.add(message),
+        call.transaction.commit(),
+    ]
 
 
-async def test_nothing_is_persisted_when_commit_fails() -> None:
-    store = InMemoryStore()
-    tx = store.begin()
-    tx.fail_next_commit = ConnectionError("db went away")
+async def test_failed_commit_is_not_reported_as_accepted() -> None:
+    """The API answers 202 only after the commit; rolling back is the session's job."""
+    ports = Ports()
+    ports.transaction.commit.side_effect = ConnectionError("db went away")
 
     with pytest.raises(ConnectionError):
-        await use_case(tx, FrozenClock()).execute(command(BASE_REQUEST))
-
-    assert store.payments == {}
-    assert store.outbox == {}
+        await ports.use_case().execute(command(BASE_REQUEST))
 
 
 @pytest.mark.parametrize("case", as_params(IDEMPOTENCY_CASES))
 async def test_idempotency(case: IdempotencyCase) -> None:
-    store, clock = InMemoryStore(), FrozenClock()
-    first = await use_case(store.begin(), clock).execute(command(BASE_REQUEST))
+    ports = Ports()
+    first = await ports.use_case().execute(command(BASE_REQUEST))
     second_request: CreatePaymentRequest = {**BASE_REQUEST, **case["second_request"]}
+    # The unique index on the key decides; answer the way Postgres would.
+    key_taken = second_request["idempotency_key"] == BASE_REQUEST["idempotency_key"]
+    ports.payments.add_if_absent.return_value = not key_taken
+    ports.payments.get_by_idempotency_key.return_value = first
 
     if case["expected"] == "conflict":
         with pytest.raises(IdempotencyKeyConflictError):
-            await use_case(store.begin(), clock).execute(command(second_request))
+            await ports.use_case().execute(command(second_request))
     else:
-        second = await use_case(store.begin(), clock).execute(command(second_request))
+        second = await ports.use_case().execute(command(second_request))
         assert (second.id == first.id) is (case["expected"] == "same-payment")
 
-    assert len(store.payments) == case["expected_payments"]
-    assert len(store.outbox) == case["expected_outbox_records"]
+    # Every stored payment is committed exactly once, together with its event.
+    assert ports.transaction.commit.await_count == case["expected_payments"]
+    assert ports.outbox.add.await_count == case["expected_outbox_records"]
