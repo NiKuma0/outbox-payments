@@ -234,8 +234,11 @@ Each redelivery re-enters at the first step whose effect is not committed yet:
 - Classification: webhook 5xx/408/429/timeout/connection errors, database
   unavailability and unexpected errors are retried; malformed messages, unknown
   payments and webhook 4xx/3xx go straight to the DLQ.
-- If republishing itself fails (broker trouble), the handler raises, FastStream
-  nacks with requeue, and nothing is lost.
+- If republishing itself fails (e.g. a retry queue was deleted), the handler raises
+  and FastStream **rejects without requeue**: the work queue's DLX moves the message
+  to the DLQ. A requeue would redeliver it instantly and forever (an integration
+  test measured ~4000 redeliveries in 5 s before this was fixed). If the connection
+  itself is gone, the message stays unacked and RabbitMQ redelivers it on reconnect.
 
 ### 4.6 Webhooks
 

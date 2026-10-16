@@ -1,25 +1,13 @@
 """TTL + dead-lettering on a real RabbitMQ (TestRabbitBroker cannot emulate them)."""
 
-import asyncio
 import time
 
 import pytest
 from faststream.rabbit import RabbitBroker, RabbitQueue
 
-from tests.support.rabbit import drain
+from tests.support.rabbit import wait_for_messages
 
 pytestmark = pytest.mark.anyio
-
-
-async def wait_for_messages(
-    broker: RabbitBroker, queue: str, *, within: float
-) -> list[bytes]:
-    deadline = time.monotonic() + within
-    while time.monotonic() < deadline:
-        if messages := await drain(broker, queue):
-            return [m.body for m in messages]
-        await asyncio.sleep(0.2)
-    return []
 
 
 async def test_retry_queue_returns_message_to_the_work_queue_after_its_ttl(

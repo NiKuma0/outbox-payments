@@ -28,6 +28,12 @@ class Transaction(Protocol):
 
     async def commit(self) -> None: ...
 
+    async def rollback(self) -> None:
+        """End the current transaction without writing; the next statement opens a new
+        one. Use cases call it after a pure read, so no pooled connection sits in an
+        open transaction while they wait on the gateway or a webhook receiver."""
+        ...
+
 
 class PaymentRepository(Protocol):
     async def add_if_absent(self, payment: Payment) -> bool:

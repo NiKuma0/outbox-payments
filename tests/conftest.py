@@ -2,7 +2,8 @@
 
 The test level (unit / integration / e2e) is derived from the directory a test lives in,
 so a test cannot forget its marker and `pytest -m unit` always means "no I/O".
-Contract suites live in ``tests/contract`` and take the level from their backend.
+Contract suites in ``tests/contract`` declare their level explicitly (``pytestmark``):
+the repository suites run on Postgres (integration), the gateway suite is pure (unit).
 """
 
 from pathlib import Path
@@ -25,5 +26,5 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
         if level in _LEVELS:
             item.add_marker(getattr(pytest.mark, level))
         elif not any(item.get_closest_marker(name) for name in _LEVELS):
-            # tests/contract/ gets its level from the backend parameter instead.
+            # tests/contract/ declares its level in each module instead.
             raise pytest.UsageError(f"{item.nodeid} has no test level marker")

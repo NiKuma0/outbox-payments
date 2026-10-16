@@ -112,8 +112,6 @@ services:
         condition: service_completed_successfully
       rabbitmq:
         condition: service_healthy
-      webhook-sink:
-        condition: service_healthy
     healthcheck: *worker-healthcheck
 
   webhook-sink:

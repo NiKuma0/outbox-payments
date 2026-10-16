@@ -1,6 +1,8 @@
 """ProcessPayment: charge, persist the outcome, notify the client.
 
-The use case is a resumable state machine keyed on what is already durable:
+The use case is a resumable state machine keyed on what is already durable. No
+transaction is ever open during an external call: reads are ended with a rollback,
+writes with a commit, before the gateway or the webhook receiver is called.
 
 1. ``pending``                 -> charge (gateway idempotency key = payment id),
                                   conditional UPDATE, commit.
@@ -62,6 +64,10 @@ class ProcessPayment:
 
     async def _load(self, payment_id: UUID) -> Payment:
         payment = await self._payments.get(payment_id)
+        # Every load is followed by an external call (2-5 s charge or a webhook with
+        # a timeout). End the read transaction first so the connection goes back to
+        # the pool instead of idling in a transaction for the whole call.
+        await self._transaction.rollback()
         if payment is None:
             raise PaymentNotFoundError(payment_id)
         return payment

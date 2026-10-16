@@ -86,7 +86,7 @@ def create_broker(
         return resources.process_payment
 
     @broker.subscriber(
-        payments_queue(), PAYMENTS_EXCHANGE, ack_policy=AckPolicy.NACK_ON_ERROR
+        payments_queue(), PAYMENTS_EXCHANGE, ack_policy=AckPolicy.REJECT_ON_ERROR
     )
     async def on_payment_created(  # pyright: ignore[reportUnusedFunction]
         message: RabbitMessage,
@@ -94,8 +94,11 @@ def create_broker(
             ProcessPaymentFactory, Depends(provide_process_payment)
         ],
     ) -> None:
-        # Returning normally acks. If routing a failure itself fails (broker trouble),
-        # the exception nacks with requeue, so the message is never lost.
+        # Returning normally acks. If routing a failure itself fails (e.g. a retry
+        # queue is missing), the exception rejects without requeue and the work
+        # queue's DLX moves the message to the DLQ: a requeue would redeliver it at
+        # once, forever. If the connection is gone, nothing is acked and RabbitMQ
+        # redelivers the message once the consumer reconnects.
         try:
             event = _parse(message)
             # One session per message, opened inside the try: a database outage is
@@ -120,7 +123,11 @@ def _parse(message: RabbitMessage) -> PaymentCreatedMessage:
 
 
 def create_app(settings: Settings) -> FastStream:
-    engine = create_engine(settings.database_url, pool_size=2)
+    # At most one connection per in-flight message, and only for single statements
+    # (ProcessPayment never keeps a transaction open across an external call).
+    engine = create_engine(
+        settings.database_url, pool_size=settings.consumer_prefetch_count
+    )
     sessions = create_session_factory(engine)
     webhook_client = create_webhook_client(settings.webhook_timeout_seconds)
     provider = EmulatedPaymentProvider(

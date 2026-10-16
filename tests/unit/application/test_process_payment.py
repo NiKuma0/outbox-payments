@@ -1,6 +1,7 @@
 """ProcessPayment must be safe to re-run from any step: every redelivery scenario below
 starts from what a crash at a different point would have left committed."""
 
+from collections.abc import Callable
 from copy import deepcopy
 from dataclasses import dataclass, field
 from datetime import timedelta
@@ -18,7 +19,9 @@ from outbox_payments.application.use_cases.process_payment import ProcessPayment
 from outbox_payments.domain import ChargeOutcome, Payment, PaymentStatus
 from tests.cases._helpers import as_params
 from tests.cases.application.process_payment import (
+    EXTERNAL_CALL_CASES,
     GATEWAY_OUTCOME_CASES,
+    ExternalCallCase,
     GatewayOutcomeCase,
 )
 from tests.fakes.clock import FrozenClock
@@ -198,3 +201,54 @@ async def test_unknown_payment_is_a_permanent_error() -> None:
 
     with pytest.raises(PaymentNotFoundError):
         await world.deliver()
+
+
+def journaled(journal: list[str], name: str, answer: Callable[..., object]) -> object:
+    """A mock ``side_effect`` that logs ``name`` and then answers like before."""
+
+    def side_effect(*args: object, **kwargs: object) -> object:
+        journal.append(name)
+        return answer(*args, **kwargs)
+
+    return side_effect
+
+
+@pytest.mark.parametrize("case", as_params(EXTERNAL_CALL_CASES))
+async def test_no_transaction_is_open_during_external_calls(
+    case: ExternalCallCase,
+) -> None:
+    journal: list[str] = []
+    stored = {
+        "pending": pending,
+        "charged": completed,
+        "delivered": lambda: completed(delivered=True),
+    }[case["stored"]]()
+    world = World(
+        stored=stored,
+        provider=FakePaymentProvider(journal=journal),
+        webhooks=RecordingWebhookSender(journal=journal),
+    )
+    if case["loses_completion_race"]:
+        serve(world.payments, stored, completed(ChargeOutcome.DECLINED, of=stored))
+    won = not case["loses_completion_race"]
+
+    def complete_if_pending(_: Payment) -> bool:
+        return won
+
+    def nothing(*_: object) -> None:
+        return None
+
+    payments, transaction = world.payments, world.transaction
+    payments.get.side_effect = journaled(journal, "get", payments.get.side_effect)
+    payments.complete_if_pending.side_effect = journaled(
+        journal, "complete_if_pending", complete_if_pending
+    )
+    payments.mark_webhook_delivered.side_effect = journaled(
+        journal, "mark_webhook_delivered", nothing
+    )
+    transaction.commit.side_effect = journaled(journal, "commit", nothing)
+    transaction.rollback.side_effect = journaled(journal, "rollback", nothing)
+
+    await world.deliver()
+
+    assert journal == case["expected_journal"]

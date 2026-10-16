@@ -47,6 +47,9 @@ class CrashBeforeCommit:
             raise ProcessKilledError
         await self._session.commit()
 
+    async def rollback(self) -> None:
+        await self._session.rollback()
+
 
 @dataclass
 class World:

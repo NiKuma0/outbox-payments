@@ -4,6 +4,9 @@ Randomness and sleeping are injected, so tests are deterministic and never wait.
 Like a real gateway it is idempotent on the key it is given: the payment id. The
 record of past charges lives in memory here; a real gateway keeps it on its side,
 which is what makes "crash after charge, before commit" safe across restarts.
+
+The record is never evicted: it grows by one entry per payment for the life of the
+process. That is fine for a demo; a long-running stand-in would need a TTL.
 """
 
 import asyncio

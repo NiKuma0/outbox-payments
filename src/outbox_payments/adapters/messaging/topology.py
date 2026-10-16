@@ -37,8 +37,9 @@ def payments_queue() -> RabbitQueue:
         PAYMENTS_QUEUE,
         durable=True,
         routing_key=ROUTING_KEY,
-        # Safety net: anything rejected without requeue (e.g. a crash inside the
-        # failure handler itself) still ends up in the DLQ instead of vanishing.
+        # Safety net: the consumer rejects (without requeue) whatever its failure
+        # handler could not route, and this DLX sends it to the DLQ instead of
+        # dropping it.
         arguments={
             "x-dead-letter-exchange": "",
             "x-dead-letter-routing-key": DEAD_LETTER_QUEUE,

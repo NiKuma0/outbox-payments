@@ -39,5 +39,10 @@ Enforced by meta-tests in `tests/unit/test_case_modules.py`:
 - Application-layer enums (e.g. `WebhookVerdict`) cannot be used in cases; the cases
   use string literals typed with `Literal[...]` instead. The purity check caught this
   once during development.
-- Contract suites take their level from the backend parameter (`memory` -> unit,
-  `sql` -> integration); the root conftest refuses tests with no level marker.
+- Use-case unit tests mock the persistence ports with `create_autospec` instead of
+  in-memory fakes of the repositories (an earlier in-memory store was removed).
+  The trade-off: those tests assert on interactions (what was passed to
+  `complete_if_pending`, in what order transactions end), which is more coupled to
+  the implementation than asserting on state. What the mocks take for granted is
+  pinned down by the contract suites in `tests/contract`, which run on real Postgres
+  (integration level); the root conftest refuses tests with no level marker.
